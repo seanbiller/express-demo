@@ -1,8 +1,31 @@
+const debug = require('debug')('app:startup')
 const Joi = require('@hapi/joi')
 const express = require('express')
 const app = express()
+const logger = require('./logger')
+const authenticate = require('./authenticate')
+const helmet = require('helmet')
+const morgan = require('morgan')
+const config = require('config')
+
+app.set('view engine', 'pug')
+app.set('views', './views')
+
+
 
 app.use(express.json())
+app.use(express.urlencoded({extended: true})) // the URL would look like key=value&key=value
+app.use(express.static('public'))
+app.use(helmet())
+
+if (app.get('env') === 'development') {
+    app.use(morgan('tiny'))
+    debug('Morgan enabled...')
+}
+
+
+app.use(logger)
+app.use(authenticate)
 
 const courses = [
     {id: 1, name: 'course1'},
@@ -19,67 +42,8 @@ const schema = Joi.object().keys({
 })
 
 app.get('/', (request, response) => {
-    response.send('Hello World!!!')
+    response.render('index', { title: 'My Express App', message: 'Hello'})
 })
-
-app.get('/api/courses', (request, response) => {
-    response.send(courses)
-})
-
-app.get('/api/courses/:id', (request, response) => {
-    const course = courses.find(c => c.id === parseInt(request.params.id))
-    if (!course) {
-        response.status(404).send('The course with the given ID was not found')
-        return
-    }
-    response.send(course)
-    
-})
-
-app.post('/api/courses', (request, response) => {
-    const { error } = schema.validate({ name: request.body.name})
-    if (error) {
-        response.status(400).send(error.details[0].message)
-        return
-    }
-    const course = {
-        id: courses.length + 1,
-        name: request.body.name
-    }
-    courses.push(course)
-    response.send(course)
-})
-
-app.put('/api/courses/:id', (request, response) => {
-    const course = courses.find(c => c.id === parseInt(request.params.id))
-    if (!course) {
-         response.status(404).send('The course with the given ID was not found')
-        return
-        }
-
-    const { error } = schema.validate({ name: request.body.name})
-    if (error) {
-        response.status(400).send(error.message)
-        return
-    }
-
-    course.name = request.body.name
-    response.send(course)
-})
-
-app.delete('/api/courses/:id', (request, response) => {
-    const course = courses.find(c => c.id === parseInt(request.params.id))
-    if (!course) {
-         response.status(404).send('The course with the given ID was not found')
-        return
-        }
-    const index = courses.indexOf(course)
-    courses.splice(index, 1)
-    
-    response.send(course)
-})
-
-
 
 
 // PORT 
